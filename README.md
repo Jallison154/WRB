@@ -71,19 +71,19 @@ WRB/
 
 ## How It Works
 
-### XIAO-to-XIAO Communication Flow:
-1. **XIAO1 Button Press** → XIAO1 sends HTTP POST to XIAO2
-2. **XIAO2 Receives** → XIAO2 forwards request to Pi server
+### ESP-NOW + Serial Communication Flow:
+1. **XIAO Transmitter Button Press** → ESP-NOW to XIAO Receiver
+2. **XIAO Receiver** → Serial command to Raspberry Pi
 3. **Pi Server** → Maps to audio file and plays through USB audio card
-4. **LED Indicators** → Show connection status on both XIAOs
+4. **LED Indicators** → Show connection status on all devices
 
 ### Audio File Mapping:
-- XIAO1 Button1 → `button1_1.wav`
-- XIAO1 Button2 → `button1_2.wav`
-- XIAO2 Button1 → `button2_1.wav`
-- XIAO2 Button2 → `button2_2.wav`
+- Button 1 Press → `button1.wav`
+- Button 2 Press → `button2.wav`
+- Button 1 Hold → `hold1.wav`
+- Button 2 Hold → `hold2.wav`
 
 ### Communication Options:
-- **Transmitter/Receiver Mode**: Dedicated roles (use `xiao_transmitter.ino` + `xiao_receiver.ino`)
-- **Simple Mode**: XIAO-to-XIAO only (use `xiao_controller_simple.ino`)
-- **Advanced Mode**: Choose Pi-only, XIAO-only, or both (use `xiao_controller_v2.ino`)
+- **ESP-NOW + Serial Mode**: Recommended (use `xiao_transmitter.ino` + `xiao_receiver.ino`)
+- **Legacy WiFi Mode**: XIAO-to-XIAO via WiFi (use `xiao_controller_simple.ino`)
+- **Advanced Mode**: Multiple communication options (use `xiao_controller_v2.ino`)

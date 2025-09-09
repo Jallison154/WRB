@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify
 from config import *
 from usb_manager import USBManager
 from status_led import StatusLED
+from serial_reader import SerialReader
 
 # Initialize pygame mixer for audio playback
 pygame.mixer.pre_init(frequency=SAMPLE_RATE, size=-16, channels=CHANNELS, buffer=BUFFER_SIZE)
@@ -38,6 +39,7 @@ class AudioServer:
         self.volume = DEFAULT_VOLUME
         self.usb_manager = USBManager()
         self.status_led = StatusLED()
+        self.serial_reader = SerialReader()
         self.setup_routes()
         self.setup_audio_directory()
         
@@ -188,6 +190,13 @@ class AudioServer:
             logger.info("Starting USB auto-mounting...")
             self.usb_manager.start_monitoring()
         
+        # Start serial reader for XIAO receiver
+        logger.info("Starting serial reader for XIAO receiver...")
+        if self.serial_reader.start():
+            logger.info("Serial reader started successfully")
+        else:
+            logger.warning("Failed to start serial reader - XIAO receiver not connected")
+        
         # Set status LED to ready state
         self.status_led.set_ready_state(True)
         logger.info("Status LED set to ready state")
@@ -208,6 +217,7 @@ class AudioServer:
         finally:
             if USB_MOUNT_ENABLED:
                 self.usb_manager.cleanup()
+            self.serial_reader.stop()
             self.status_led.cleanup()
 
 def main():

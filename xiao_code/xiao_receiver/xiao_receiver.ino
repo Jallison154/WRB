@@ -1,4 +1,3 @@
-#include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_sleep.h>
@@ -7,6 +6,10 @@
 // ---------- Pins (use Dx aliases) ----------
 #define LED_PIN  D10               // status LED on header D10
 const bool LED_ACTIVE_LOW = false; // set true if LED looks inverted
+
+// ---------- Pi Serial Communication ----------
+// Direct serial connection to Pi (no WiFi needed)
+// Pi will read from /dev/ttyUSB0 or similar
 
 // ---------- Allowed Transmitter MACs (only these will be accepted) ----------
 uint8_t ALLOWED_TX_MACS[][6] = {
@@ -31,6 +34,10 @@ uint8_t numTxLinks = 0;
 
 // ---------- Button state tracking ----------
 uint32_t lastBtnActivityMs = 0;
+
+// ---------- Pi serial communication ----------
+uint32_t piForwardCount = 0;
+uint32_t piForwardFailures = 0;
 
 // ---------- MAC validation helper ----------
 bool isAllowedTransmitter(const uint8_t* mac) {
@@ -72,9 +79,9 @@ void ledTask(){
   if (recentActivity) {
     ledOn();               // 100% when button activity received
   } else if (anyLinked) {
-    ledLinked();           // 25% when linked
+    ledLinked();           // 25% when linked (serial always connected)
   } else {
-    showNoLinkDoubleBlink(now);  // Double blink when no links (same as transmitter)
+    showNoLinkDoubleBlink(now);  // Double blink when no links
   }
 }
 
@@ -146,39 +153,45 @@ void onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len){
       txLinks[txIndex].linked = true;
       break;
       
-    case MSG_BTN:
-      if (len >= 2) {
-        uint8_t btnId = data[1];
-        Serial.printf("RX: BTN%u from %02X:%02X:%02X:%02X:%02X:%02X\n", 
-                     btnId, info->src_addr[0], info->src_addr[1], info->src_addr[2],
-                     info->src_addr[3], info->src_addr[4], info->src_addr[5]);
-        
-        // Update button states for this transmitter
-        if (btnId == 1) {
-          txLinks[txIndex].lastBtn1State = 1;
-        } else if (btnId == 2) {
-          txLinks[txIndex].lastBtn2State = 1;
-        }
-        lastBtnActivityMs = now;
-        
-        // Send ACK back
-        sendAck(info->src_addr);
-      }
-      break;
+     case MSG_BTN:
+       if (len >= 2) {
+         uint8_t btnId = data[1];
+         Serial.printf("RX: BTN%u from %02X:%02X:%02X:%02X:%02X:%02X\n", 
+                      btnId, info->src_addr[0], info->src_addr[1], info->src_addr[2],
+                      info->src_addr[3], info->src_addr[4], info->src_addr[5]);
+         
+         // Update button states for this transmitter
+         if (btnId == 1) {
+           txLinks[txIndex].lastBtn1State = 1;
+         } else if (btnId == 2) {
+           txLinks[txIndex].lastBtn2State = 1;
+         }
+         lastBtnActivityMs = now;
+         
+         // Forward to Pi server
+         forwardToPi(btnId, false); // false = not a hold
+         
+         // Send ACK back
+         sendAck(info->src_addr);
+       }
+       break;
       
-    case MSG_BTN_HOLD:
-      if (len >= 2) {
-        uint8_t btnId = data[1];
-        Serial.printf("RX: BTN%u HOLD from %02X:%02X:%02X:%02X:%02X:%02X\n", 
-                     btnId, info->src_addr[0], info->src_addr[1], info->src_addr[2],
-                     info->src_addr[3], info->src_addr[4], info->src_addr[5]);
-        
-        lastBtnActivityMs = now;
-        
-        // Send ACK back
-        sendAck(info->src_addr);
-      }
-      break;
+     case MSG_BTN_HOLD:
+       if (len >= 2) {
+         uint8_t btnId = data[1];
+         Serial.printf("RX: BTN%u HOLD from %02X:%02X:%02X:%02X:%02X:%02X\n", 
+                      btnId, info->src_addr[0], info->src_addr[1], info->src_addr[2],
+                      info->src_addr[3], info->src_addr[4], info->src_addr[5]);
+         
+         lastBtnActivityMs = now;
+         
+         // Forward to Pi server
+         forwardToPi(btnId, true); // true = is a hold
+         
+         // Send ACK back
+         sendAck(info->src_addr);
+       }
+       break;
   }
 }
 
@@ -202,6 +215,9 @@ void setup(){
   analogWriteFrequency(LED_PIN, 2000);   // Hz
   ledOff();
 
+  // Initialize Serial1 for Pi communication
+  Serial1.begin(115200, SERIAL_8N1, D6, D7); // TX=D6, RX=D7
+  
   // WiFi/ESP-NOW init
   WiFi.mode(WIFI_STA);
   esp_wifi_set_promiscuous(true);
@@ -215,6 +231,26 @@ void setup(){
   esp_now_register_recv_cb(onRecv);
   
   Serial.println("Receiver ready! Only accepting authorized transmitters.");
+  Serial.println("Serial communication to Pi enabled.");
+}
+
+// ---------- Pi serial communication functions ----------
+void forwardToPi(uint8_t buttonId, bool isHold) {
+  // Send simple command to Pi via serial
+  // Format: "BTN<id>:<hold>\n"
+  String command = "BTN" + String(buttonId) + ":" + (isHold ? "HOLD" : "PRESS") + "\n";
+  
+  Serial.print("Sending to Pi: " + command);
+  Serial1.print(command);  // Send to Pi via Serial1 (hardware UART)
+  
+  piForwardCount++;
+}
+
+void printMacAddress() {
+  uint8_t mac[6];
+  esp_wifi_get_mac(WIFI_IF_STA, mac);
+  Serial.printf("Receiver MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", 
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 // ---------- Loop ----------
@@ -237,7 +273,8 @@ void loop(){
     for(uint8_t i = 0; i < numTxLinks; i++) {
       if(txLinks[i].linked) linkedCount++;
     }
-    Serial.printf("Status: %d transmitters, %d linked\n", numTxLinks, linkedCount);
+    Serial.printf("Status: %d transmitters, %d linked, Pi forwards: %d\n", 
+                  numTxLinks, linkedCount, piForwardCount);
   }
   
   delay(10);
