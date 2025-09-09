@@ -16,7 +16,10 @@ from usb_manager import USBManager
 from status_led import StatusLED
 from serial_reader import SerialReader
 
-# Initialize pygame mixer for audio playback
+# Initialize pygame mixer for audio playback with ALSA configuration
+os.environ.setdefault("SDL_AUDIODRIVER", "alsa")
+os.environ.setdefault("AUDIODEV", "plughw:0,0")
+
 pygame.mixer.pre_init(frequency=SAMPLE_RATE, size=-16, channels=CHANNELS, buffer=BUFFER_SIZE)
 pygame.mixer.init()
 

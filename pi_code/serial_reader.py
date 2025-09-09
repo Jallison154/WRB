@@ -24,18 +24,26 @@ class SerialReader:
         
     def connect(self):
         """Connect to serial port"""
-        try:
-            self.serial_conn = serial.Serial(
-                port=self.port,
-                baudrate=self.baudrate,
-                timeout=1,
-                write_timeout=1
-            )
-            logger.info(f"Connected to serial port: {self.port}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to serial port {self.port}: {e}")
-            return False
+        # Try multiple serial ports like the working code
+        prefs = [self.port, "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/serial0", "/dev/ttyAMA0", "/dev/ttyS0"]
+        
+        for port in prefs:
+            try:
+                self.serial_conn = serial.Serial(
+                    port=port,
+                    baudrate=self.baudrate,
+                    timeout=0.1,  # Match working code timeout
+                    write_timeout=1
+                )
+                logger.info(f"Connected to serial port: {port}")
+                self.port = port  # Update the port to the working one
+                return True
+            except Exception as e:
+                logger.debug(f"Failed to connect to {port}: {e}")
+                continue
+        
+        logger.error(f"Failed to connect to any serial port")
+        return False
             
     def disconnect(self):
         """Disconnect from serial port"""
