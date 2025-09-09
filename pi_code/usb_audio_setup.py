@@ -78,27 +78,36 @@ def configure_usb_audio():
     print("✅ USB audio device detected")
     
     # Create ALSA configuration
+    # From your output, USB audio is on card 0
     alsa_config = """
 # USB Audio Configuration for WRB System
 pcm.!default {
     type hw
-    card 1
+    card 0
     device 0
 }
 
 ctl.!default {
     type hw
-    card 1
+    card 0
 }
 """
     
     # Write ALSA configuration
     try:
-        with open("/home/pi/.asoundrc", "w") as f:
+        # Get the home directory dynamically
+        home_dir = os.path.expanduser("~")
+        asoundrc_path = os.path.join(home_dir, ".asoundrc")
+        
+        # Ensure the home directory exists
+        os.makedirs(home_dir, exist_ok=True)
+        
+        with open(asoundrc_path, "w") as f:
             f.write(alsa_config)
-        print("✅ Created ~/.asoundrc configuration")
+        print(f"✅ Created {asoundrc_path} configuration")
     except Exception as e:
         print(f"❌ Failed to create ALSA config: {e}")
+        print("Try running with sudo or check permissions")
         return False
     
     # Test the configuration
