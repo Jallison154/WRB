@@ -16,7 +16,7 @@ sudo apt install -y python3 python3-pip python3-venv
 
 # Install system audio dependencies
 echo "🔊 Installing audio system dependencies..."
-sudo apt install -y alsa-utils pulseaudio python3-rpi.gpio
+sudo apt install -y alsa-utils pulseaudio python3-rpi.gpio alsa-tools
 
 # Install Python packages from requirements.txt
 echo "📚 Installing Python packages..."
@@ -29,6 +29,9 @@ echo "Navigate to: Interfacing Options → Serial → Enable"
 
 # Set up audio system
 echo "🎧 Configuring audio system..."
+echo "Available audio devices:"
+aplay -l || echo "No audio devices found"
+
 # Test if audio is working
 if command -v speaker-test &> /dev/null; then
     echo "Testing audio system..."
@@ -37,6 +40,11 @@ if command -v speaker-test &> /dev/null; then
 else
     echo "Warning: speaker-test not found. Audio may not be properly configured."
 fi
+
+# USB Audio setup
+echo "🔌 USB Audio Setup:"
+echo "If you have a USB audio device, run: python3 usb_audio_setup.py"
+echo "This will help configure USB audio as the default device."
 
 # Check GPIO permissions
 echo "🔧 Setting up GPIO permissions..."
