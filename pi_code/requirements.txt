@@ -1,0 +1,5 @@
+pygame==2.5.2
+flask==3.0.0
+requests==2.31.0
+python-dotenv==1.0.0
+RPi.GPIO==0.7.1
