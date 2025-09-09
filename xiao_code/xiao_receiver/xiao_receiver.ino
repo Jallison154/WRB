@@ -1,3 +1,4 @@
+#include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
 #include <esp_sleep.h>
@@ -218,7 +219,8 @@ void setup(){
   // Initialize Serial1 for Pi communication
   Serial1.begin(115200, SERIAL_8N1, D6, D7); // TX=D6, RX=D7
   
-  // ESP-NOW init (WiFi not needed for serial communication)
+  // ESP-NOW init (WiFi mode needed for ESP-NOW)
+  WiFi.mode(WIFI_STA);
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
   esp_wifi_set_promiscuous(false);
