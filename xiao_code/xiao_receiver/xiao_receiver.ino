@@ -242,7 +242,7 @@ void forwardToPi(uint8_t buttonId, bool isHold) {
   String command = "BTN" + String(buttonId) + ":" + (isHold ? "HOLD" : "PRESS") + "\n";
   
   Serial.print("Sending to Pi: " + command);
-  Serial1.print(command);  // Send to Pi via Serial1 (hardware UART)
+  Serial.print(command);  // Send to Pi via USB Serial (connected to Pi)
   
   piForwardCount++;
 }

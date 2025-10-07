@@ -81,6 +81,11 @@ class SerialReader:
                 return None, None
                 
             # Expected format: "BTN1:PRESS" or "BTN2:HOLD"
+            # Also handle debug output: "Sending to Pi: BTN1:PRESS"
+            if "Sending to Pi: " in command:
+                # Extract the actual command from debug output
+                command = command.replace("Sending to Pi: ", "").strip()
+            
             if command.startswith("BTN") and ":" in command:
                 parts = command.split(":")
                 if len(parts) == 2:
